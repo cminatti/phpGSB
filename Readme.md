@@ -1,25 +1,18 @@
-# Implementation of Google Safe Browsing
+# PHP Implementation of Google Safe Browsing V3
 
-**phpGSB** is a robust implementation of the Google Safe Browsing API. It currently *does* allow the following:
+This is a fork of **samclaever/phpGSB** modified to work with v 3.0 of GSB
+
+The code is based on samcleaver/phpGSB and the python library https://github.com/afilipovich/gglsbl 
 
 * Updating of GSB lists to a MySQL database
 * Basic checking of URLs' against lists and then full-hash checks against the full GSB database
 * Caching of full-hash keys to minimise requests to the remote Google server
 
-At current it *does not* allow the following:
 
-* Requests using MAC keys (integrity checks)
-
-The main class is definitely not as efficient as it could be and has developed very quickly to meet the basic GSB specification; any contributions, bug fixes etc are **very** welcome! 
 
 ## Download
 
-* Installation using composer
-```
-$ composer require samcleaver/phpgsb
-```
-
-* You could manually download phpgsb by this link: https://github.com/samcleaver/phpGSB/archive/0.2.6.zip
+* git clone https://github.com/cminatti/phpGSB
 
 ## Installation
 
