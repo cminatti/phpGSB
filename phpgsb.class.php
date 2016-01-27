@@ -8,6 +8,7 @@ All rights reserved.
 */
 
 require_once 'Storage.class.php';
+require_once "chunkdata/chunk.proto.php";
 
 class phpGSB {
     
