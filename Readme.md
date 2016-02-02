@@ -2,7 +2,7 @@
 
 This is a fork of **samclaever/phpGSB** modified to work with v 3.0 of GSB
 
-The code is based on samcleaver/phpGSB and the python library https://github.com/afilipovich/gglsbl 
+The code is based on samcleaver/phpGSB and the python library https://github.com/afilipovich/gglsbl
 
 * Updating of GSB lists to a MySQL database
 * Basic checking of URLs' against lists and then full-hash checks against the full GSB database
@@ -16,10 +16,11 @@ The code is based on samcleaver/phpGSB and the python library https://github.com
 
 ## Installation
 
-1. Enter database details into install.php (Replace DATABASE_USERNAME, DATABASE_NAME and DATABASE_PASSWORD with respective information)
-2. Run install.php
-3. Look at listupdater.php and lookup.php example files for basic methods on using the system.
-4. If you choose to use listupdater.php as-is then set it as a cron job/scheduled task to run every minute. *(It won't actually update every minute but is required incase of backoff procedures and timeouts)*
+1. You have to install protocol buffers php extension:  https://pecl.php.net/package/protocolbuffers
+2. Enter database details into install.php (Replace DATABASE_USERNAME, DATABASE_NAME and DATABASE_PASSWORD with respective information)
+3. Run install.php
+4. Look at listupdater.php and lookup.php example files for basic methods on using the system.
+5. If you choose to use listupdater.php as-is then set it as a cron job/scheduled task to run every minute. *(It won't actually update every minute but is required incase of backoff procedures and timeouts)*
 
 ## FAQ
 

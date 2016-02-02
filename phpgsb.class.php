@@ -11,9 +11,9 @@ require_once 'Storage.class.php';
 require_once "chunkdata/chunk.proto.php";
 
 class phpGSB {
-    
+
     //TODO make them private
-    public $apikey          = "";	
+    public $apikey          = "";
     public $usinglists = array('googpub-phish-shavar','goog-malware-shavar', 'goog-unwanted-shavar');
 
     private $version        = "0.3";
@@ -33,16 +33,15 @@ class phpGSB {
     /*
      * Automatically connect to database on calling class
      */
-    public function __construct($database=false,$username=false,$password=false,$host="localhost",$verbose=true) {
+    public function __construct($database=false,$username=false,$password=false,$host="localhost",$verbose=false) {
 
-        if(!$verbose) {
-            $this->silent();
-        }
+        $this->verbose = $verbose;
 
         $this->outputmsg("phpGSB Loaded");
 
         if( $database && $username) {
-            $this->storage = new Storage($database,$username,$password,$host);
+            $this->storage = new Storage($database,$username,$password,$host, $verbose);
+            $this->storage->verbose = $this->verbose;
         }
 
     }
@@ -50,11 +49,16 @@ class phpGSB {
     public function install() {
         $this->storage->install();
     }
-    
+
     function silent() {
-        $this->verbose = false;	
+        $this->verbose = false;
+        $this->storage->verbose = $this->verbose;
     }
 
+    function verbose() {
+        $this->verbose = true;
+        $this->storage->verbose = $this->verbose;
+    }
 
     /*
      * Function to output messages, used instead of echo,
@@ -97,10 +101,10 @@ class phpGSB {
      * based on the number of previous errors
      */
     function calc($errors) {
-        //According to Developer Guide Formula 
+        //According to Developer Guide Formula
         if($errors==1) {
                 //According to Developer Guide (1st error, wait a minute)
-                return 60;			
+                return 60;
         } elseif($errors>5) {
                 //Check between 240 and 480 mins
                 return (240 * 60) + rand(0, 14400);
@@ -130,7 +134,7 @@ class phpGSB {
         $seconds = $this->calc($errors);
         $until = time()+$seconds.'||'.$errors;
         file_put_contents($this->pingfilepath.$file,$until);
-        $this->fatalerror(array("Invalid Response... Backing Off",$errdata));	
+        $this->fatalerror(array("Invalid Response... Backing Off",$errdata));
     }
 
     /*
@@ -142,7 +146,7 @@ class phpGSB {
         } else {
                 $file = 'nextcheck-'.$type.'.dat';
         }
-        
+
         if (file_exists($this->pingfilepath.$file)) {
                 $curstatus = explode('||',file_get_contents($this->pingfilepath.$file));
 //                $until = time()+$seconds.'||'.$curstatus[1];
@@ -150,7 +154,7 @@ class phpGSB {
         } else {
                 $until = time()+$seconds.'||';
         }
-        file_put_contents($this->pingfilepath.$file,$until);	
+        file_put_contents($this->pingfilepath.$file,$until);
     }
 
     /*
@@ -175,9 +179,9 @@ class phpGSB {
         }
     }
     /*
-     * Function downloads from URL's, POST data can be passed via $options. $followbackoff indicates 
+     * Function downloads from URL's, POST data can be passed via $options. $followbackoff indicates
      * whether to follow backoff procedures or not
-     */	
+     */
     function googleDownloader($url,$options,$followbackoff=false) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -194,8 +198,8 @@ class phpGSB {
         if($followbackoff && $info['http_code']>299) {
             $this->Backoff($info,$followbackoff);
         }
-        return array($info,$data);		
-    }	
+        return array($info,$data);
+    }
 
     /*
      * Process Chunks for V3 protocol
@@ -224,9 +228,9 @@ class phpGSB {
 
 //                var_dump($chunk);
 
-            if ($this->storage->chunk_exists($chunk->getChunkNumber(), $chunk->getChunkType(), $listname)) {
-                echo 'Chunk '.$chunk->getChunkNumber().' '. $chunk->getChunkType().' '.$listname.' already exist in database. Skipping...'."\n";
-                continue; 
+            if ($this->storage->chunk_exists($chunk, $listname)) {
+                //echo 'Chunk '.$chunk->getChunkNumber().' '. $chunk->getChunkType().' '.$listname.' already exist in database. Skipping...'."\n";
+                continue;
             }
 
             //add chunk
@@ -235,14 +239,14 @@ class phpGSB {
         }
 
     }
-    
+
     /*
      * Get both add and sub ranges for a requested list
      */
     function getFullRanges($listname) {
         $addranges = $this->storage->get_ranges($listname,'add');
         $subranges = $this->storage->get_ranges($listname,'sub');
-        return array("Subranges"=>$subranges,"Addranges"=>$addranges);		
+        return array("Subranges"=>$subranges,"Addranges"=>$addranges);
     }
 
     /*
@@ -263,7 +267,7 @@ class phpGSB {
 
 
     /*
-     * Main part of updater function, will call all other functions, merely requires 
+     * Main part of updater function, will call all other functions, merely requires
      * the request body, it will then process and save all data as well as checking
      * for ADD-DEL and SUB-DEL, runs silently so won't return anything on success
      */
@@ -290,9 +294,9 @@ class phpGSB {
                         $listdata = explode("\n",trim($value));
                         $listname = $listdata[0];
                         unset($listdata[0]);
-                        $formattedlist[$listname] = $listdata;				
+                        $formattedlist[$listname] = $listdata;
                     }
-                    foreach($formattedlist as $key=>$value) {	
+                    foreach($formattedlist as $key=>$value) {
                         $listname = $key;
                         foreach($value as $keyinner=>$valueinner) {
                             if(substr_count($valueinner,"u:")>0) {
@@ -309,10 +313,10 @@ class phpGSB {
                                 if(substr_count($valueinner,',')>0) {
                                     $valueinner = explode(',',trim(str_replace("ad:","",$valueinner)));
                                     foreach($valueinner as $keyadd=>$valueadd) {
-//                                            $this->storage->delete_range($valueadd,'a',$listname);									
+                                            $this->storage->delete_range($valueadd,'add',$listname);
                                     }
                                 } else {
-                                    $this->storage->delete_range(trim(str_replace("ad:","",$valueinner)),'a',$listname);
+                                    $this->storage->delete_range(trim(str_replace("ad:","",$valueinner)),'add',$listname);
                                 }
 
                             } elseif(substr_count($valueinner,"sd:")>0) {//delete sub chunks
@@ -320,17 +324,17 @@ class phpGSB {
                                 if(substr_count($valueinner,',')>0) {
                                     $valueinner = explode(',',trim(str_replace("sd:","",$valueinner)));
                                     foreach($valueinner as $keyadd=>$valueadd) {
-                                        $this->storage->delete_range($valueadd,'s',$listname);									
+                                        $this->storage->delete_range($valueadd,'sub',$listname);
                                     }
                                 } else {
-                                    $this->storage->delete_range(trim(str_replace("sd:","",$valueinner)),'s',$listname);
+                                    $this->storage->delete_range(trim(str_replace("sd:","",$valueinner)),'sub',$listname);
                                 }
 
                             }
                         }
                     }
             } else {
-                $this->outputmsg('No data available in list');	
+                $this->outputmsg('No data available in list');
             }
         }
         $this->storage->trans_commit();
@@ -347,9 +351,9 @@ class phpGSB {
         }
         $require = "";
         foreach($this->usinglists as $value) {
-            $require .= $this->formattedRequest($value);	
+            $require .= $this->formattedRequest($value);
         }
-        $this->outputmsg("Using $require");	
+        $this->outputmsg("Using $require");
         $this->getData($require);
     }
 
@@ -406,13 +410,13 @@ class phpGSB {
             }
     /*
      * Special thanks Steven Levithan (stevenlevithan.com) for the ridiculously complicated regex
-      required to parse urls. This is used over parse_url as it robustly provides access to 
-      port, userinfo etc and handles mangled urls very well. 
+      required to parse urls. This is used over parse_url as it robustly provides access to
+      port, userinfo etc and handles mangled urls very well.
       Expertly integrated into phpGSB by Sam Cleaver ;)
       Thanks to mikegillis677 for finding the seg. fault issue in the old function.
       Passed validateMethod() check on 17/01/12
      */
-    function j_parseUrl($url) 
+    function j_parseUrl($url)
             {
             $strict = '/^(?:([^:\/?#]+):)?(?:\/\/\/?((?:(([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?))?(((?:\/(\w:))?((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/';
             $loose = '/^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/\/?)?((?:(([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?)(((?:\/(\w:))?(\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/';
@@ -424,7 +428,7 @@ class phpGSB {
                     preg_match($strict, $url, $match);
                     }
             $parts = array("source"=>'',"scheme"=>'',"authority"=>'',"userinfo"=>'',"user"=>'',"password"=>'',"host"=>'',"port"=>'',"relative"=>'',"path"=>'',"drive"=>'',"directory"=>'',"file"=>'',"query"=>'',"fragment"=>'');
-              switch (count ($match)) {  
+              switch (count ($match)) {
                     case 15: $parts['fragment'] = $match[14];
                     case 14: $parts['query'] = $match[13];
                     case 13: $parts['file'] =  $match[12];
@@ -444,13 +448,13 @@ class phpGSB {
             return $parts;
             }
     /*Regex to check if its a numerical IP address*/
-    function is_ip($ip) 
+    function is_ip($ip)
             {
             return preg_match("/^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])" .
                             "(\.([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])){3}$/", $ip);
-            } 
+            }
     /*Checks if input is in hex format*/
-    function is_hex($x) 
+    function is_hex($x)
             {
             //Relys on the fact that hex often includes letters meaning PHP will disregard the string
             if(($x+3) == 3)
@@ -473,7 +477,7 @@ class phpGSB {
                             }
                     elseif($this->is_octal($value))
                             {
-                            return octdec($value);	
+                            return octdec($value);
                             }
                     else
                             return false;
@@ -483,7 +487,7 @@ class phpGSB {
             {
             //Removes any leading 0x (used to denote hex) and then and leading 0's)
             $temp = str_replace('0x','',$hex);
-            $temp = ltrim($temp,"0");	
+            $temp = ltrim($temp,"0");
             return hexdec($temp);
             }
     /*Converts full IP address in HEX to decimal*/
@@ -491,14 +495,14 @@ class phpGSB {
             {
             //Remove hex identifier and leading 0's (not significant)
             $tempip = str_replace('0x','',$hex);
-            $tempip = ltrim($tempip,"0");	
+            $tempip = ltrim($tempip,"0");
             //It might be hex
             if($this->is_hex($tempip))
                     {
                     //There may be a load of junk before the part we need
                     if(strlen($tempip)>8)
                             {
-                            $tempip = substr($tempip,-8);	
+                            $tempip = substr($tempip,-8);
                             }
                     $hexplode = preg_split('//', $tempip, -1, PREG_SPLIT_NO_EMPTY);
                     while(count($hexplode)<8)
@@ -518,7 +522,7 @@ class phpGSB {
       an IP address. Normalises to a four part IP address.*/
     function isValid_IP($ip)
             {
-            //First do a simple check, if it passes this no more needs to be done	
+            //First do a simple check, if it passes this no more needs to be done
             if($this->is_ip($ip))
                     return $ip;
 
@@ -549,7 +553,7 @@ class phpGSB {
                                     if($this->is_ip($newip))
                                             return $newip;
                                     }
-                            }	
+                            }
                     }
             $ipcomponents[1] = $this->hexoct2dec($ipcomponents[1]);
             if(count($ipcomponents)==3)
@@ -566,7 +570,7 @@ class phpGSB {
                                     if($this->is_ip($newip))
                                             return $newip;
                                     }
-                            }	
+                            }
                     }
             //If not it may be a combination of hex and octal
             if(count($ipcomponents)>=4)
@@ -575,7 +579,7 @@ class phpGSB {
               foreach($tmpcomponents as $key=>$value)
                       {
                       if(!$tmpcomponents[$key] = $this->hexoct2dec($value))
-                              return false;	
+                              return false;
                       }
 
               array_unshift($tmpcomponents,$ipcomponents[0],$ipcomponents[1]);
@@ -721,9 +725,9 @@ class phpGSB {
      * SHA-256 input (short method).
      */
     function sha256($data) {
-        return hash('sha256',$data);	
+        return hash('sha256',$data);
     }
-            
+
     /*
      * Make Hostkeys for use in a lookup
      */
@@ -741,7 +745,7 @@ class phpGSB {
                 $hosts = array($host."/");
             }
         }
-        
+
         //Now make key & key prefix
         $returnhosts = array();
         foreach($hosts as $value) {
@@ -750,7 +754,7 @@ class phpGSB {
                         "Host"=>$value,
                         "Prefix"=>substr($fullhash,0,8), // sha is Hex value. 8 digits are 4 bytes
                         "Hash"=>$fullhash
-                    );	
+                    );
         }
         return $returnhosts;
     }
@@ -767,7 +771,7 @@ class phpGSB {
                 $returnprefixes[$fullhash] = array(
                     "Original"=>$value,
                     "Prefix"=>substr($fullhash,0,8), // sha is hex value. 8 digits are 4 bytes
-                    "Hash"=>$fullhash);	
+                    "Hash"=>$fullhash);
             }
             return $returnprefixes;
         } else {
@@ -779,8 +783,8 @@ class phpGSB {
      * Make URL prefixes for use after a hostkey check
      */
     function makePrefixes($host,$path,$query,$usingip) {
-        $prefixes = array();	
-        //Exact hostname in the url	
+        $prefixes = array();
+        //Exact hostname in the url
         $hostcombos = array();
         $hostcombos[] = $host;
         if(!$usingip) {
@@ -829,13 +833,13 @@ class phpGSB {
                     }
         }
         $variations = array_unique($variations);
-        return $this->makeHashes($variations);	
+        return $this->makeHashes($variations);
     }
 
     /*
-     * Does a full URL lookup on given lists, will check if its in database, if slight match there then 
+     * Does a full URL lookup on given lists, will check if its in database, if slight match there then
      * will do a full-hash lookup on GSB, returns (bool) true on match and (bool) false on negative.
-     */            
+     */
     function do_lookup($url) {
         $lists = $this->usinglists;
         //First canonicalize the URL
@@ -845,88 +849,87 @@ class phpGSB {
         $hostkeys = $this->makeHostKey($canurl['Parts']['Host'],$canurl['Parts']['IP']);
 
         $prefixes = $this->makePrefixes($canurl['Parts']['Host'],$canurl['Parts']['Path'],$canurl['Parts']['Query'],$canurl['Parts']['IP']);
-        
+
 //        print_r($canurl);
 //        print_r($hostkeys);
 //        print_r($prefixes);
-        
+
         //foreach hash
         foreach($prefixes as $keyinner => $valueinner) {
-            
+
             $hash_prefix = $valueinner['Prefix'];
-            
-            $this->outputmsg($valueinner['Hash']);
-            
+
+
             if ($this->storage->lookup_hash_prefix($hash_prefix)) {
-                
+
                 $this->sync_full_hashes($hash_prefix);
-                $list = $this->storage->lookup_full_hash($valueinner['Hash']);
-                if ($list) {
-                    return $list;
+                $lists = $this->storage->lookup_full_hash($valueinner['Hash']);
+                if ($lists) {
+                    return $lists;
                 }
             }
-            
+
         }
 
-        return false;	
+        return false;
     }
 
     /*
      * Sync full hashes starting with hash_prefix from remote server
      */
     function sync_full_hashes($hash_prefix) {
-         
+
         if (!$this->storage->full_hash_sync_required($hash_prefix)) {
 //            log.debug('Cached full hash entries are still valid for "0x%s", no sync required.', hash_prefix.encode("hex"))
             return;
         }
-        
+
         $data = $this->get_full_hashes( $hash_prefix );
-        
+
         $this->storage->store_full_hashes($hash_prefix, $data);
-        
+
     }
-    
+
     /*
      * Download and parse full-sized hash entries
      */
     function get_full_hashes($hash_prefix) {
-        
+
         //FOLLOW backoff request frequency
         $this->checkTimeout('full_hash');
-        
+
         $this->outputmsg('Downloading hashes for hash prefixes '.$hash_prefix);
 
 //        $hash_prefix = pack('H*', $hash_prefix); //hash_prefix is Hexa, 8 digits, equivalent to 4 bytes.
         $hash_prefix = hex2bin($hash_prefix);
         $prefix_len = strlen($hash_prefix); //should be 4
-        
+
 //        die('prefix len: '.$prefix_len); //it is 4! :)
-        
+
         $hashes_len = $prefix_len * 1; //only 1 hash prefix
         $header = $prefix_len.':'.$hashes_len;
-        
+
         $body = $header."\n".$hash_prefix;
-        
-        $this->outputmsg('Full hash request: '.$header."\n".$hash_prefix);
+
+        //$this->outputmsg('Full hash request: '.$header."\n".$hash_prefix);
 
         $buildopts = array(CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$body);
         //Download list data
         $result = $this->googleDownloader("https://safebrowsing.google.com/safebrowsing/gethash?client=api&key=".$this->apikey."&appver=".$this->version."&pver=".$this->apiversion,$buildopts,"full_hash");
-        
+
         $split = explode("\n",$result[1],2);
-        
+
         $cache_lifetime = (int) trim($split[0]);
-       
+
         //Parse full-sized hash entry
         $hash_entry = $split[1];
         $hashes = array();
         $metadata = array();
-        
+
         while(strlen($hash_entry)>0) {
-            
+
             $has_metadata = false;
-            
+
             $head_rest = explode("\n",$hash_entry,2);
             $hash_entry = $head_rest[1];
             $head = explode(':',$head_rest[0]); //head
@@ -964,12 +967,12 @@ class phpGSB {
         }
         return array(
                     'cache_lifetime' => $cache_lifetime,
-                    'hashes' => $hashes, 
+                    'hashes' => $hashes,
                     'metadata' => $metadata,
                 );
     }
-    
-    
+
+
     public function reset() {
         $this->storage->reset_database();
     }

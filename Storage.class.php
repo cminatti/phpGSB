@@ -4,11 +4,13 @@ class Storage {
     
     private $transenabled = true;
     private $conn = false;
-    private $verbose	= true;
+    public $verbose	= true;
     private $ob             = "";
     private $transtarted    = false;
     
     public function __construct($database=false,$username=false,$password=false,$host="localhost",$verbose=true) {
+        
+        $this->verbose = $verbose;
         
         $this->db_connect($database,$username,$password,$host);
                 
@@ -134,7 +136,7 @@ CREATE TABLE IF NOT EXISTS `chunk` (
 
         //Delete from chunk table
         if (!mysqli_query($this->conn, $query)) {
-            echo(__FUNCTION__." Error: " . mysqli_error($this->conn));
+            $this->outputmsg(__FUNCTION__." Error: " . mysqli_error($this->conn));
             return false;
         }
 
@@ -143,14 +145,14 @@ CREATE TABLE IF NOT EXISTS `chunk` (
 
     }
     
-    function chunk_exists($number,$mode,$listname) {
+    function chunk_exists($chunk,$listname) {
 
         $query = "SELECT COUNT(*) FROM chunk 
-                                    WHERE chunk_number = ".$number." AND 
-                                        chunk_type = '".$mode."' AND list_name = '".$listname."' ";
+                                    WHERE chunk_number = '".$chunk->getChunkNumber()."' AND 
+                                        chunk_type = '".($chunk->getChunkType() == 0?'add':'sub')."' AND list_name = '".$listname."' ";
 
         if (!$result = mysqli_query($this->conn, $query)) {
-            echo(__FUNCTION__." Error: " . mysqli_error($this->conn));
+            $this->outputmsg(__FUNCTION__." Error: " . mysqli_error($this->conn));
             return false;
         }
 
@@ -334,7 +336,7 @@ CREATE TABLE IF NOT EXISTS `chunk` (
             return true; //on add list, and not on sub list
         }
         
-        if (array_diff($lists_add, $lists_sub)) { //if it is on any list as 'add', and not on the same list as 'sub'
+        if (array_diff($list_add, $list_sub)) { //if it is on any list as 'add', and not on the same list as 'sub'
             $this->outputmsg('Prefix Hash found on lists: '.print_r(array_diff($lists_add, $lists_sub),true));
             return true;
         }
@@ -399,9 +401,13 @@ CREATE TABLE IF NOT EXISTS `chunk` (
             $this->outputmsg(__FUNCTION__." Error: " . mysqli_error($this->conn));
             return false;
         }
-        $row = mysqli_fetch_array($result, MYSQLI_ASSOC);
-        if ($row) {
-            return $row['list_name'];
+        $lists = array();
+        while($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
+            $lists[] = $row['list_name'];
+        }
+        
+        if (count($lists) > 0) {
+            return $lists;
         }
         false;
         
