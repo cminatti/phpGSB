@@ -8,7 +8,6 @@ All rights reserved.
 */
 
 require_once 'Storage.class.php';
-require_once 'Storage_memcached.class.php';
 require_once "chunkdata/chunk.proto.php";
 
 class phpGSB {
@@ -734,7 +733,7 @@ class phpGSB {
      * SHA-256 input (short method).
      */
     function sha256($data) {
-        return hash('sha256',$data);	
+        return bin2hex(hash('sha256',$data, true));	
     }
             
     /*
@@ -761,7 +760,7 @@ class phpGSB {
             $fullhash = $this->sha256($value);
             $returnhosts[$fullhash] = array(
                         "Host"=>$value,
-                        "Prefix"=>substr($fullhash,0,8), // sha is Hex value. 8 digits are 4 bytes
+                        "Prefix"=>substr($fullhash,0,8), // if sha is Hex value. 8 digits are 4 bytes
                         "Hash"=>$fullhash
                     );	
         }
@@ -779,7 +778,7 @@ class phpGSB {
                 $fullhash = $this->sha256($value);
                 $returnprefixes[$fullhash] = array(
                     "Original"=>$value,
-                    "Prefix"=>substr($fullhash,0,8), // sha is hex value. 8 digits are 4 bytes
+                    "Prefix"=>substr($fullhash,0,8), // if sha is hex value. 8 digits are 4 bytes
                     "Hash"=>$fullhash);	
             }
             return $returnprefixes;
@@ -861,7 +860,7 @@ class phpGSB {
         
 //        print_r($canurl);
 //        print_r($hostkeys);
-//        print_r($prefixes);
+        $this->outputmsg('Hash prefixes: '.print_r($prefixes, 1));
         
         //foreach hash
         foreach($prefixes as $keyinner => $valueinner) {

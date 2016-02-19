@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS `chunk` (
         
         $this->outputmsg('Databased reset.');
     }
-        
+  
  
     /*
      * Called when GSB returns a SUB-DEL or ADD-DEL response
@@ -282,23 +282,25 @@ CREATE TABLE IF NOT EXISTS `chunk` (
         
             $hash_length = ($chunk->getPrefixType() == \ChunkData\PrefixType::PREFIX_4B)? 4: 32;
             $hashes = $chunk->getHashes();
+
             $n = strlen($hashes) / $hash_length;
 
             if ($n !== (int) $n) {
                 $this->outputmsg('Error! Wrong number of hashes or hash length! '.$listname.' '.var_export($chunk,true));
             }
-            for($i = 0; $i < $n; $i = $i + $hash_length) {
+            
+            for($i = 0; $i < $n; $i++) {
 
                 //insert hash_prefix              
                 $hash_prefix = unpack("H*",substr($hashes, $i*$hash_length, $hash_length)); //unpack H* ?
                 $hash_prefix = $hash_prefix[1];
 //                $hash_prefix = bin2hex(substr($hashes, $i*$hash_length, $hash_length)); // bin2hex?? 4 bytes are 8 digits in Hexa
-                
+
                 if (!$this->insert_hash_prefix($chunk, $listname, $hash_prefix)) {
                     break;
                 }
             }
-            
+
             return true;
         }
         return false;
