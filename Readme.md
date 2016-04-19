@@ -16,7 +16,17 @@ The code is based on samcleaver/phpGSB and the python library https://github.com
 
 ## Installation
 
-1. You have to install protocol buffers php extension:  https://pecl.php.net/package/protocolbuffers
+1. You have to install protocol buffers php extension. Download it from https://pecl.php.net/package/protocolbuffers
+
+* cd php-protocolbuffers
+* phpize
+* ./configure
+* make
+* make install
+* 
+* Then please add following line to your php.ini
+* # extension=protocolbuffers.so
+
 2. Enter database details into install.php (Replace DATABASE_USERNAME, DATABASE_NAME and DATABASE_PASSWORD with respective information)
 3. Run install.php
 4. Look at listupdater.php and lookup.php example files for basic methods on using the system.
